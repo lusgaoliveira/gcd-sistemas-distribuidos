@@ -64,3 +64,4 @@ public class GcdSlaveM {
         return a;
     }
 }
+

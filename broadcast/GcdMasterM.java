@@ -1,3 +1,11 @@
+/**
+ * Alterações
+ * 1. Utilização de broadcast na porta 3000 e criação de mensagem de descoberta
+ * 2. Menu com 3 opções (Calcular GCD, Buscar máqunias via broadcast e visualizar o log das execuções do gcd)
+ * 3. Modularização de todo o código
+ * 4. de
+ */
+
 package broadcast;
 
 import java.io.*;
@@ -36,7 +44,7 @@ public class GcdMasterM {
                         System.out.println("Nenhum nó encontrado. Use a opção 2 primeiro!");
                     } else {
                         System.out.print("Digite os números separados por espaço: ");
-                        scanner.nextLine(); // consumir quebra de linha
+                        scanner.nextLine(); 
                         String[] nums = scanner.nextLine().trim().split("\\s+");
                         LinkedList<Long> novosNumeros = new LinkedList<>();
                         try {
@@ -53,7 +61,7 @@ public class GcdMasterM {
 
                 case 2:
                     System.out.println("Descobrindo máquinas via broadcast...");
-                    slaveAddresses = sendBroadCast();
+                    slaveAddresses = sendBroadCast(socket);
                     break;
 
                 case 3:
@@ -64,17 +72,13 @@ public class GcdMasterM {
                     System.out.println("Opção inválida! Tente novamente.");
             }
         } while (opc != 0);
-
         socket.close();
         scanner.close();
     }
 
     // Descoberta via broadcast
-    private static List<InetSocketAddress> sendBroadCast() throws IOException {
+    private static List<InetSocketAddress> sendBroadCast(DatagramSocket socket) throws IOException {
         List<InetSocketAddress> slaveAddresses = new ArrayList<>();
-
-        DatagramSocket socket = new DatagramSocket(); 
-        socket.setBroadcast(true);
 
         String discoveryMsg = "DISCOVER_GCD_SLAVE";
         byte[] data = discoveryMsg.getBytes();
@@ -109,7 +113,7 @@ public class GcdMasterM {
         if (slaveAddresses.isEmpty()) {
             System.out.println("Nenhum escravo encontrado.");
         }
-        socket.close();
+
 
         return slaveAddresses;
     }
@@ -130,7 +134,7 @@ public class GcdMasterM {
             int port = addr.getPort();
 
             slaveIndex++;
-
+            
             String values = HelperClass.makeMessage(a, b);
             sendToSlave(socket, values, ip, port);
             long gcd = receiveResult(socket);
@@ -149,6 +153,7 @@ public class GcdMasterM {
     }
 
     private static void sendToSlave(DatagramSocket socket, String msg, InetAddress ip, int port) throws IOException {
+        System.out.println("Aqui!!!!");
         byte[] data = msg.getBytes();
         DatagramPacket packet = new DatagramPacket(data, data.length, ip, port);
         socket.send(packet);
@@ -180,13 +185,14 @@ public class GcdMasterM {
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
-            System.out.println("=== Resultados do GCD ===");
+            System.out.println("======== Resultados do GCD ========");
             while ((line = br.readLine()) != null) {
                 System.out.println(line);
             }
-            System.out.println("=========================");
+            System.out.println("===================================");
         } catch (IOException e) {
             System.out.println("Erro ao ler arquivo: " + e.getMessage());
         }
     }
 }
+
