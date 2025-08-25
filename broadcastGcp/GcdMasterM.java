@@ -1,0 +1,148 @@
+/**
+ * Alterações
+ * 1. Utilização de broadcast na porta 3000 e criação de mensagem de descoberta
+ * 2. Menu com 3 opções (Calcular GCD, Buscar máqunias via broadcast e visualizar o log das execuções do gcd)
+ * 3. Modularização de todo o código
+ * 4. de
+ */
+
+package broadcastGcp;
+
+import java.io.*;
+import java.net.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class GcdMasterM {
+
+    public static void main(String[] args) throws IOException {
+        Scanner scanner = new Scanner(System.in);
+
+        // IPs fixos dos slaves no GCP
+        List<InetSocketAddress> slaveAddresses = new ArrayList<>();
+        slaveAddresses.add(new InetSocketAddress("10.158.0.3", 3000));
+        slaveAddresses.add(new InetSocketAddress("10.158.0.4", 3000));
+        slaveAddresses.add(new InetSocketAddress("10.158.0.5", 3000));
+
+        DatagramSocket socket = new DatagramSocket(4000);
+
+        int opc;
+        do {
+            System.out.println(
+                    "\nEscolha a opção desejada:\n" +
+                    "0 - Sair (Finished GCD)\n" +
+                    "1 - Calcular o GCD\n" +
+                    "2 - (REMOVIDO - Broadcast)\n" +
+                    "3 - Visualizar resultados da execução"
+            );
+            System.out.print("Opção: ");
+            opc = scanner.nextInt();
+
+            switch (opc) {
+                case 0:
+                    System.out.println("Programa encerrado.");
+                    break;
+
+                case 1:
+                    System.out.print("Digite os números separados por espaço: ");
+                    scanner.nextLine();
+                    String[] nums = scanner.nextLine().trim().split("\\s+");
+                    LinkedList<Long> novosNumeros = new LinkedList<>();
+                    try {
+                        for (String n : nums) {
+                            novosNumeros.add(Long.parseLong(n));
+                        }
+                        System.out.println("Calculando GCD...");
+                        gcdCalculate(socket, novosNumeros, slaveAddresses);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Entrada inválida! Digite apenas números.");
+                    }
+                    break;
+
+                case 3:
+                    readResultFile("gcd_results.txt");
+                    break;
+
+                default:
+                    System.out.println("Opção inválida! Tente novamente.");
+            }
+        } while (opc != 0);
+        socket.close();
+        scanner.close();
+    }
+
+    // GCD (igual ao seu)
+    private static void gcdCalculate(DatagramSocket socket, LinkedList<Long> numbers, List<InetSocketAddress> slaveAddresses) throws IOException {
+        long start = System.nanoTime();
+
+        Queue<Long> queue = new LinkedList<>(numbers);
+        int slaveIndex = 0;
+
+        while (queue.size() > 1) {
+            long a = queue.poll();
+            long b = queue.poll();
+
+            InetSocketAddress addr = slaveAddresses.get(slaveIndex % slaveAddresses.size());
+            InetAddress ip = addr.getAddress();
+            int port = addr.getPort();
+
+            slaveIndex++;
+            
+            String values = HelperClass.makeMessage(a, b);
+            sendToSlave(socket, values, ip, port);
+            long gcd = receiveResult(socket);
+
+            queue.add(gcd);
+        }
+
+        long end = System.nanoTime();
+        long durationMillis = (end - start) / 1_000_000L;
+        long result = queue.poll();
+
+        System.out.println("Resultado final (GCD): " + result);
+        System.out.println("Tempo de execução = " + durationMillis + " ms");
+
+        saveResultInFile(result, durationMillis, "gcd_results.txt");
+    }
+
+    private static void sendToSlave(DatagramSocket socket, String msg, InetAddress ip, int port) throws IOException {
+        byte[] data = msg.getBytes();
+        DatagramPacket packet = new DatagramPacket(data, data.length, ip, port);
+        socket.send(packet);
+    }
+
+    private static long receiveResult(DatagramSocket socket) throws IOException {
+        byte[] buffer = new byte[255];
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+        socket.receive(packet);
+        return Long.parseLong(new String(packet.getData()).trim());
+    }
+
+    private static void saveResultInFile(long gcd, long durationMillis, String filename) {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(filename, true))) {
+            String dataHora = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            pw.println(dataHora + " - Resultado GCD: " + gcd + ", Tempo: " + durationMillis + " ms");
+        } catch (IOException e) {
+            System.out.println("Erro ao salvar resultado: " + e.getMessage());
+        }
+    }
+
+    private static void readResultFile(String filename) {
+        File file = new File(filename);
+        if (!file.exists()) {
+            System.out.println("Arquivo de resultados não encontrado!");
+            return;
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            System.out.println("======== Resultados do GCD ========");
+            while ((line = br.readLine()) != null) {
+                System.out.println(line);
+            }
+            System.out.println("===================================");
+        } catch (IOException e) {
+            System.out.println("Erro ao ler arquivo: " + e.getMessage());
+        }
+    }
+}

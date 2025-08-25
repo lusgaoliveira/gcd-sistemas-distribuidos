@@ -1,4 +1,4 @@
-package broadcast;
+package broadcastGcp;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -7,7 +7,7 @@ import java.net.DatagramSocket;
 public class GcdSlaveM {
     public static void main(String[] args) throws IOException {
         if (args.length != 1) {
-            System.out.println("Uso: java GcdSlave <porta> ");
+            System.out.println("Uso: java GcdSlaveM <id> ");
             return;
         }
 
@@ -23,31 +23,19 @@ public class GcdSlaveM {
 
             String message = new String(packet.getData(), 0, packet.getLength()).trim();
 
-            // A mensagem é de da master tentanto descobrir os slaves via broadcast
-            if (message.equals("DISCOVER_GCD_SLAVE")) {
-                String response = processId + "," + socket.getLocalPort();
-                byte[] sendData = response.getBytes();
-                DatagramPacket responsePacket = new DatagramPacket(sendData, sendData.length,
-                        packet.getAddress(), 4000);
-                socket.send(responsePacket);
+            if (message.equals("EXIT")) {
+                System.out.println("Slave " + processId + " finalizado.");
+                break;
             } else {
                 String[] parts = message.split(",");
                 long a = Long.parseLong(parts[0]);
                 long b = Long.parseLong(parts[1]);
 
-                if (a == 0 && b == 0) {
-                    System.out.println("Slave " + processId + " recebeu comando para finalizar.");
-                    break;
-                }
-
                 long result = gcd(a, b);
                 byte[] sendData = String.valueOf(result).getBytes();
                 DatagramPacket resultPacket = new DatagramPacket(sendData, sendData.length,
                         packet.getAddress(), 4000);
-                System.out.println("Aqui 1");
                 socket.send(resultPacket);
-                System.out.println("Aqui 2");
-
             }
         }
 
@@ -64,5 +52,3 @@ public class GcdSlaveM {
         return a;
     }
 }
-
-    
